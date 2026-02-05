@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Sika - Assistante Gouvernementale Béninoise 🇧🇯
 
-## Getting Started
+**Sika** est un chatbot WhatsApp intelligent conçu pour faciliter l'accès aux documents officiels du gouvernement du Bénin (décrets, lois, comptes rendus du Conseil des Ministres).
 
-First, run the development server:
+Il utilise l'intelligence artificielle **Google Gemini** combinée à la **Recherche Google (Grounding)** pour trouver, synthétiser et fournir des sources officielles en temps réel depuis le site `sgg.gouv.bj`.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🚀 Fonctionnalités Clés
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+*   **🔍 Recherche Officielle Intelligente (Grounding)** : Interroge directement le Secrétariat Général du Gouvernement pour des réponses fiables et à jour.
+*   **🧠 Conscience du Contexte** : Sika se souvient de la conversation. Vous pouvez poser des questions de suivi comme *"Et celui de 2023 ?"* sans répéter le contexte.
+*   **💬 Conversation Naturelle** : Distingue automatiquement le bavardage social (*"Bonjour"*) des requêtes officielles.
+*   **📱 Optimisé pour WhatsApp** :
+    *   Formatage automatique (Gras, Liens, Listes).
+    *   Gestion des longs messages (découpage automatique pour respecter les limites de Twilio).
+*   **📄 Support PDF** : Capacité native d'extraire le texte des documents PDF si nécessaire.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛠️ Stack Technique
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*   **Framework** : [Next.js](https://nextjs.org/) (App Router)
+*   **Langage** : TypeScript
+*   **AI & Search** : [Google Gemini 2.0 Flash](https://ai.google.dev/) (avec Google Search Grounding)
+*   **Messaging** : [Twilio API](https://www.twilio.com/) (WhatsApp)
+*   **PDF Parsing** : `pdf-parse`
 
-## Learn More
+## ⚙️ Installation
 
-To learn more about Next.js, take a look at the following resources:
+1.  **Cloner le projet** :
+    ```bash
+    git clone https://github.com/votre-username/sika.git
+    cd sika
+    ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2.  **Installer les dépendances** :
+    ```bash
+    npm install
+    ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3.  **Configurer les variables d'environnement** :
+    Créez un fichier `.env.local` à la racine :
+    ```env
+    TWILIO_ACCOUNT_SID=votre_sid
+    TWILIO_AUTH_TOKEN=votre_token
+    TWILIO_PHONE_NUMBER=+14155238886
+    GEMINI_API_KEY=votre_api_key
+    ```
+    *Note : `GEMINI_API_KEY` doit avoir l'accès à "Google Search Grounding" activé.*
 
-## Deploy on Vercel
+4.  **Lancer le serveur de développement** :
+    ```bash
+    npm run dev
+    ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🧪 Tests et Vérification
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Le projet inclut plusieurs scripts pour tester les composants individuellement :
+
+*   **Tester le Grounding et l'IA** :
+    ```bash
+    npx tsx scripts/test-grounding.ts
+    ```
+*   **Tester le formatage WhatsApp** :
+    ```bash
+    npx tsx scripts/test-format.ts
+    ```
+*   **Tester la conscience du contexte** :
+    ```bash
+    npx tsx scripts/test-context.ts
+    ```
+
+## 🌍 Déploiement
+
+1.  Déployez l'application sur **Vercel** (recommandé pour Next.js).
+2.  Dans la console Twilio (Messaging > Try it out > Send a WhatsApp message), configurez l'URL du Webhook :
+    *   `WHEN A MESSAGE COMES IN`: `https://votre-projet.vercel.app/api/whatsapp`
+    *   Method: `POST`
+
+---
+*Développé avec ❤️ pour rendre l'information publique plus accessible.*
