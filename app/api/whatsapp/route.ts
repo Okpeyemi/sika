@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio } from '../../lib/gemini';
-import { sendWhatsAppMessage, getMediaBase64 } from '../../lib/evolution';
+import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio, translateToFon } from '../../lib/gemini';
+import { sendWhatsAppMessage, getMediaBase64, sendWhatsAppAudio } from '../../lib/evolution';
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
+import { transcribeAudioMMS, generateSpeechMMS } from '../../lib/huggingface';
 
 export async function POST(req: NextRequest) {
     try {
         const bodyText = await req.text();
         const payload = JSON.parse(bodyText);
+        let isAudioMessage = false;
 
         // Evolution API Webhook Structure (example for messages.upsert)
         // Adjust based on your specific 'Global Webhhook' or specific event settings.
@@ -57,22 +59,17 @@ export async function POST(req: NextRequest) {
 
             if (base64Audio) {
                 const buffer = Buffer.from(base64Audio, 'base64');
+                // Use Gemini STT directly (MMS remote is 410 Gone)
                 messageContent = await transcribeAudio(buffer, 'audio/ogg');
+                if (messageContent) isAudioMessage = true;
             } else {
                 console.log('Base64 missing in webhook, attempting to fetch from Evolution API...');
-                // Fallback: Fetch base64 using the message object
-                // We pass the inner message object or the full payload depending on what the endpoint expects.
-                // Usually it expects the message key and content info.
-                // Let's pass the 'messageData' or 'data' appropriately.
-                // If 'data' is the full message-upsert data structure, pass that? 
-                // The endpoint expects { message: <The Message Object> }
-                // In webhook, 'data' usually IS the message object (or data.data).
-
                 const fetchedBase64 = await getMediaBase64(data);
 
                 if (fetchedBase64) {
                     const buffer = Buffer.from(fetchedBase64, 'base64');
                     messageContent = await transcribeAudio(buffer, 'audio/ogg');
+                    if (messageContent) isAudioMessage = true;
                 } else {
                     console.warn('Failed to fetch audio base64.');
                     messageContent = "[Audio non transcrit]";
@@ -115,8 +112,38 @@ export async function POST(req: NextRequest) {
                 // 4. Save Bot Response
                 addMessage(userId, 'model', answer);
 
-                // 5. Send WhatsApp response via Evolution API
-                await sendWhatsAppMessage(from, answer);
+                // 5. Send WhatsApp response (Text or Audio)
+                if (isAudioMessage) {
+                    console.log("Audio message detected. Handling Fon translation/TTS...");
+
+                    // Translate to Fon
+                    const { fonText, links } = await translateToFon(answer);
+
+                    if (fonText) {
+                        console.log("Generating Fon TTS...");
+                        const audioBuffer = await generateSpeechMMS(fonText);
+
+                        if (audioBuffer) {
+                            await sendWhatsAppAudio(from, audioBuffer);
+                        } else {
+                            console.warn("TTS generation failed. Sending text fallback.");
+                            await sendWhatsAppMessage(from, fonText);
+                        }
+                    } else {
+                        // Translation failed, send original
+                        await sendWhatsAppMessage(from, answer);
+                    }
+
+                    // Send links separately if any
+                    if (links && links.length > 0) {
+                        const linksMsg = "🔗 Liens utiles :\n" + links.join("\n");
+                        await sendWhatsAppMessage(from, linksMsg);
+                    }
+
+                } else {
+                    // Standard Text Response
+                    await sendWhatsAppMessage(from, answer);
+                }
             } catch (error) {
                 console.error('Background processing error:', error);
                 await sendWhatsAppMessage(from, "Désolé, une erreur technique est survenue.");
@@ -130,3 +157,5 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }
+
+

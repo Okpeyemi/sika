@@ -118,3 +118,44 @@ export async function getMediaBase64(message: any): Promise<string | null> {
         return null;
     }
 }
+
+export async function sendWhatsAppAudio(to: string, audioBuffer: Buffer) {
+    if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN || !EVOLUTION_INSTANCE_NAME) {
+        return;
+    }
+
+    let number = to.replace('whatsapp:', '').replace(/\+/g, '').replace(/\D/g, '');
+    if (to.includes('@s.whatsapp.net')) {
+        number = to.split('@')[0];
+    }
+
+    try {
+        const endpoint = `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE_NAME}`;
+        
+        // Convert buffer to base64
+        const base64Audio = audioBuffer.toString('base64');
+        
+        const payload = {
+            number: number,
+            media: base64Audio,
+            mediatype: "audio",
+            mimetype: "audio/mp4", // Evolution usually handles conversion, or use audio/ogg
+            fileName: "response.mp3"
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EVOLUTION_API_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+             console.error(`Evolution API Audio Error (${response.status}):`, await response.text());
+        }
+    } catch (error) {
+        console.error('Error sending WhatsApp audio:', error);
+    }
+}

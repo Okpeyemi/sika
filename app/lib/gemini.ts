@@ -132,3 +132,39 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
         return '';
     }
 }
+
+export async function translateToFon(text: string): Promise<{fonText: string, links: string[]}> {
+    if (!apiKey) return { fonText: '', links: [] };
+
+    // Extract links first to avoid translating them
+    const links: string[] = [];
+    const textWithoutLinks = text.replace(/https?:\/\/[^\s]+/g, (match) => {
+        links.push(match);
+        return '[LIEN]'; // Placeholder
+    });
+    
+    // Also remove markdown bold/italics for cleaner TTS
+    const cleanText = textWithoutLinks.replace(/\*|_/g, '');
+
+    const prompt = `
+    Traduis le texte suivant en langue Fon (Bénin).
+    Le texte est une réponse officielle, sois précis mais naturel.
+    Garde le placeholder '[LIEN]' tel quel s'il apparait.
+    
+    Texte : "${cleanText}"
+    
+    Traduction Fon :`;
+
+    try {
+        const result = await model.generateContent(prompt);
+        let fonText = result.response.text().trim();
+        
+        // Remove [LIEN] placeholders from audio text, usually we don't speak them or say "Link available"
+        fonText = fonText.replace(/\[LIEN\]/g, ''); 
+
+        return { fonText, links };
+    } catch (error) {
+        console.error('Error translating to Fon:', error);
+        return { fonText: '', links: [] };
+    }
+}
