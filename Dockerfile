@@ -21,10 +21,10 @@ RUN pip install --no-cache-dir -r requirements-tts.txt
 COPY scripts/tts_server.py .
 
 # Expose port 8000
-EXPOSE 8000
+EXPOSE 8001
 
 # Define environment variable
-ENV PORT=8000
+ENV PORT=8001
 
 # Run tts_server.py when the container launches
 CMD ["uvicorn", "tts_server:app", "--host", "0.0.0.0", "--port", "8000"]
