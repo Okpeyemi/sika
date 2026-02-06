@@ -33,11 +33,12 @@ export async function transcribeAudioMMS(audioBuffer: Buffer): Promise<string> {
     }
 }
 
-const TTS_SERVER_URL = process.env.TTS_API_URL || "http://localhost:8000";
+const TTS_SERVER_URL = process.env.TTS_API_URL;
 
 export async function generateSpeechMMS(text: string): Promise<Buffer | null> {
     try {
         console.log(`Generating TTS via server: ${TTS_SERVER_URL}`);
+
         const response = await fetch(`${TTS_SERVER_URL}/generate`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
