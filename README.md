@@ -11,7 +11,7 @@ Il utilise l'intelligence artificielle **Google Gemini** combinée à la **Reche
 *   **💬 Conversation Naturelle** : Distingue automatiquement le bavardage social (*"Bonjour"*) des requêtes officielles.
 *   **📱 Optimisé pour WhatsApp** :
     *   Formatage automatique (Gras, Liens, Listes).
-    *   Gestion des longs messages (découpage automatique pour respecter les limites de Twilio).
+    *   Gestion des longs messages (découpage automatique pour respecter les limites de l'API WhatsApp).
 *   **📄 Support PDF** : Capacité native d'extraire le texte des documents PDF si nécessaire.
 
 ## 🛠️ Stack Technique
@@ -19,7 +19,7 @@ Il utilise l'intelligence artificielle **Google Gemini** combinée à la **Reche
 *   **Framework** : [Next.js](https://nextjs.org/) (App Router)
 *   **Langage** : TypeScript
 *   **AI & Search** : [Google Gemini 2.0 Flash](https://ai.google.dev/) (avec Google Search Grounding)
-*   **Messaging** : [Twilio API](https://www.twilio.com/) (WhatsApp)
+*   **Messaging** : [Evolution API](https://github.com/EvolutionAPI/evolution-api) (WhatsApp)
 *   **PDF Parsing** : `pdf-parse`
 
 ## ⚙️ Installation
@@ -38,9 +38,12 @@ Il utilise l'intelligence artificielle **Google Gemini** combinée à la **Reche
 3.  **Configurer les variables d'environnement** :
     Créez un fichier `.env.local` à la racine :
     ```env
-    TWILIO_ACCOUNT_SID=votre_sid
-    TWILIO_AUTH_TOKEN=votre_token
-    TWILIO_PHONE_NUMBER=+14155238886
+    # Evolution API
+    EVOLUTION_API_URL=https://votre-evolution-api.com
+    EVOLUTION_API_TOKEN=votre_global_api_key
+    EVOLUTION_INSTANCE_NAME=SikaBot
+
+    # Gemini
     GEMINI_API_KEY=votre_api_key
     ```
     *Note : `GEMINI_API_KEY` doit avoir l'accès à "Google Search Grounding" activé.*
@@ -62,17 +65,13 @@ Le projet inclut plusieurs scripts pour tester les composants individuellement :
     ```bash
     npx tsx scripts/test-format.ts
     ```
-*   **Tester la conscience du contexte** :
-    ```bash
-    npx tsx scripts/test-context.ts
-    ```
 
 ## 🌍 Déploiement
 
 1.  Déployez l'application sur **Vercel** (recommandé pour Next.js).
-2.  Dans la console Twilio (Messaging > Try it out > Send a WhatsApp message), configurez l'URL du Webhook :
-    *   `WHEN A MESSAGE COMES IN`: `https://votre-projet.vercel.app/api/whatsapp`
-    *   Method: `POST`
+2.  Configurez le Webhook dans votre instance **Evolution API** :
+    *   URL: `https://votre-projet.vercel.app/api/whatsapp`
+    *   Events: Activez `MESSAGES_UPSERT` (ou équivalent global).
 
 ---
 *Développé avec ❤️ pour rendre l'information publique plus accessible.*

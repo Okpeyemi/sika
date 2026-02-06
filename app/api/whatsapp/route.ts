@@ -1,34 +1,70 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnswer, classifyIntent, generateChatResponse } from '../../lib/gemini';
-import { sendWhatsAppMessage } from '../../lib/twilio';
+import { sendWhatsAppMessage } from '../../lib/evolution';
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
 
 export async function POST(req: NextRequest) {
     try {
-        // Twilio sends data as application/x-www-form-urlencoded
-        const formData = await req.formData();
-        const body = formData.get('Body') as string;
-        const from = formData.get('From') as string;
+        const bodyText = await req.text();
+        const payload = JSON.parse(bodyText);
 
-        if (!body || !from) {
-            return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
+        // Evolution API Webhook Structure (example for messages.upsert)
+        // Adjust based on your specific 'Global Webhhook' or specific event settings.
+        // Usually: { type: "MESSAGE_UPSERT", data: { ... } } or just the data.
+
+        // Log to inspect structure during dev
+        // console.log('Webhook payload:', JSON.stringify(payload, null, 2));
+
+        // Basic check for message event
+        const data = payload?.data || payload; // specific to how wrapping is configured
+
+        // Check for message upsert or similar event type
+        // if (payload.event !== 'messages.upsert') return NextResponse.json({ ok: true });
+
+        // Extract message details
+        // Note: Structure largely depends on Baileys/Evolution version. 
+        // Common path: data.key.remoteJid (sender), data.message.conversation (text) or data.message.extendedTextMessage.text
+
+        const messageData = data?.message || data;
+        const key = data?.key || messageData?.key;
+
+        if (!key || key.fromMe) {
+            // Ignore own messages
+            return NextResponse.json({ status: 'ignored_own_message' });
         }
 
-        console.log(`Received message from ${from}: ${body}`);
+        const from = key.remoteJid;
 
-        // Ack the request immediately to avoid Twilio timeout
-        // We will process asynchronously
+        // Extract text content
+        let messageContent = '';
+        if (messageData?.conversation) {
+            messageContent = messageData.conversation;
+        } else if (messageData?.extendedTextMessage?.text) {
+            messageContent = messageData.extendedTextMessage.text;
+        } else if (data?.content) {
+            // simplified webhook sometimes returns just content
+            messageContent = data.content;
+        }
+
+        if (!messageContent || !from) {
+            // Maybe a status update or non-text message
+            return NextResponse.json({ status: 'no_text_content' });
+        }
+
+        console.log(`Received message from ${from}: ${messageContent}`);
+
+        // Ack immediately
         (async () => {
             try {
                 // 1. Manage History
-                const userId = from;
-                addMessage(userId, 'user', body);
+                const userId = from; // Use remoteJid as ID
+                addMessage(userId, 'user', messageContent);
 
                 const history = getHistory(userId);
                 const formattedHistory = formatHistoryForGemini(history);
 
                 // 2. Classify Intent
-                const intent = await classifyIntent(body, formattedHistory);
+                const intent = await classifyIntent(messageContent, formattedHistory);
                 console.log(`Intent determined: ${intent} for user ${userId}`);
 
                 let answer = '';
@@ -36,16 +72,16 @@ export async function POST(req: NextRequest) {
                 if (intent === 'SEARCH') {
                     // 3. Generate Answer using Gemini Grounding
                     console.log(`[Route] Delegating search to Gemini Grounding...`);
-                    answer = await generateAnswer(body, formattedHistory);
+                    answer = await generateAnswer(messageContent, formattedHistory);
                 } else {
                     // 3c. Generate Chat Response
-                    answer = await generateChatResponse(body, formattedHistory);
+                    answer = await generateChatResponse(messageContent, formattedHistory);
                 }
 
                 // 4. Save Bot Response
                 addMessage(userId, 'model', answer);
 
-                // 5. Send WhatsApp response
+                // 5. Send WhatsApp response via Evolution API
                 await sendWhatsAppMessage(from, answer);
             } catch (error) {
                 console.error('Background processing error:', error);
@@ -53,13 +89,7 @@ export async function POST(req: NextRequest) {
             }
         })();
 
-        // Return TwiML or just 200 OK. 
-        // Since we are messaging back asynchronously, simple 200 is fine if we don't want to reply in the same HTTP connection.
-        // However, it's good practice to return empty TwiML if we don't want to reply synchronously.
-        return new NextResponse('<Response></Response>', {
-            headers: { 'Content-Type': 'text/xml' },
-            status: 200
-        });
+        return NextResponse.json({ status: 'success' });
 
     } catch (error) {
         console.error('Error in WhatsApp webhook:', error);
