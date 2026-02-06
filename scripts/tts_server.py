@@ -65,6 +65,13 @@ async def generate_audio(request: TTSRequest):
 def health_check():
     return {"status": "ok", "model": MODEL_ID}
 
+@app.get("/")
+def root():
+    return {"status": "Sika TTS Server is running", "endpoints": ["/generate", "/health"]}
+
+# Optimize memory/threads for small containers
+torch.set_num_threads(1)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     print(f"🚀 Starting server on port {port}...")
