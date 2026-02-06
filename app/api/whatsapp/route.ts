@@ -98,9 +98,15 @@ export async function POST(req: NextRequest) {
                 const intent = await classifyIntent(messageContent, formattedHistory);
                 console.log(`Intent determined: ${intent} for user ${userId}`);
 
+                // Status Update: Initial Processing
+                await sendWhatsAppMessage(from, "⏳ ...");
+
                 let answer = '';
 
                 if (intent === 'SEARCH') {
+                    // Status Update: Searching
+                    await sendWhatsAppMessage(from, "🔍 ...");
+
                     // 3. Generate Answer using Gemini Grounding
                     console.log(`[Route] Delegating search to Gemini Grounding...`);
                     answer = await generateAnswer(messageContent, formattedHistory);
@@ -115,6 +121,9 @@ export async function POST(req: NextRequest) {
                 // 5. Send WhatsApp response (Text or Audio)
                 if (isAudioMessage) {
                     console.log("Audio message detected. Handling Fon translation/TTS...");
+
+                    // Status Update: Audio Generation
+                    await sendWhatsAppMessage(from, "⏳ ...");
 
                     // Translate to Fon
                     const { fonText, links } = await translateToFon(answer);
