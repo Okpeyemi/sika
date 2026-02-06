@@ -27,4 +27,4 @@ EXPOSE 8001
 ENV PORT=8001
 
 # Run tts_server.py when the container launches
-CMD ["uvicorn", "tts_server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn tts_server:app --host 0.0.0.0 --port ${PORT:-8001}"]
