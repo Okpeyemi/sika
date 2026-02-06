@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAnswer, classifyIntent, generateChatResponse } from '../../lib/gemini';
-import { sendWhatsAppMessage } from '../../lib/evolution';
+import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio } from '../../lib/gemini';
+import { sendWhatsAppMessage, getMediaBase64 } from '../../lib/evolution';
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
 
 export async function POST(req: NextRequest) {
@@ -44,6 +44,40 @@ export async function POST(req: NextRequest) {
         } else if (data?.content) {
             // simplified webhook sometimes returns just content
             messageContent = data.content;
+        }
+
+        // Check for Audio/Voice Message
+        if (messageData?.audioMessage) {
+            console.log('Audio message detected');
+            // Check for base64 payload (Evolution API often sends 'base64' if configured or we might need to fetch)
+            // Assuming 'base64' or 'mediaUrl' is available. 
+            // For robust handling, check your specific Evolution config (base64 in webhook = true)
+
+            const base64Audio = data?.base64 || messageData?.base64;
+
+            if (base64Audio) {
+                const buffer = Buffer.from(base64Audio, 'base64');
+                messageContent = await transcribeAudio(buffer, 'audio/ogg');
+            } else {
+                console.log('Base64 missing in webhook, attempting to fetch from Evolution API...');
+                // Fallback: Fetch base64 using the message object
+                // We pass the inner message object or the full payload depending on what the endpoint expects.
+                // Usually it expects the message key and content info.
+                // Let's pass the 'messageData' or 'data' appropriately.
+                // If 'data' is the full message-upsert data structure, pass that? 
+                // The endpoint expects { message: <The Message Object> }
+                // In webhook, 'data' usually IS the message object (or data.data).
+
+                const fetchedBase64 = await getMediaBase64(data);
+
+                if (fetchedBase64) {
+                    const buffer = Buffer.from(fetchedBase64, 'base64');
+                    messageContent = await transcribeAudio(buffer, 'audio/ogg');
+                } else {
+                    console.warn('Failed to fetch audio base64.');
+                    messageContent = "[Audio non transcrit]";
+                }
+            }
         }
 
         if (!messageContent || !from) {

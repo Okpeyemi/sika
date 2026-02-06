@@ -83,3 +83,38 @@ export function formatWhatsAppResponse(text: string): string {
 
     return formatted;
 }
+
+export async function getMediaBase64(message: any): Promise<string | null> {
+    if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN || !EVOLUTION_INSTANCE_NAME) {
+        return null;
+    }
+
+    try {
+        const endpoint = `${EVOLUTION_API_URL}/chat/getBase64FromMediaMessage/${EVOLUTION_INSTANCE_NAME}`;
+
+        const payload = {
+            message: message, // Pass the full message object from webhook
+            convertToMp4: false
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EVOLUTION_API_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            console.error('Error fetching media base64:', await response.text());
+            return null;
+        }
+
+        const data = await response.json();
+        return data?.base64 || null;
+    } catch (error) {
+        console.error('Error in getMediaBase64:', error);
+        return null;
+    }
+}

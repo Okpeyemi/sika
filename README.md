@@ -12,6 +12,7 @@ Il utilise l'intelligence artificielle **Google Gemini** combinée à la **Reche
 *   **📱 Optimisé pour WhatsApp** :
     *   Formatage automatique (Gras, Liens, Listes).
     *   Gestion des longs messages (découpage automatique pour respecter les limites de l'API WhatsApp).
+*   **🎤 Support Audio/Notes Vocales** : Transcrit et répond automatiquement aux notes vocales envoyées par l'utilisateur.
 *   **📄 Support PDF** : Capacité native d'extraire le texte des documents PDF si nécessaire.
 
 ## 🛠️ Stack Technique

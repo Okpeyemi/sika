@@ -104,3 +104,31 @@ export async function generateChatResponse(query: string, history: string = ''):
         return 'Bonjour ! Comment puis-je vous aider aujourd\'hui ?';
     }
 }
+
+export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
+    if (!apiKey) {
+        console.error('Gemini API key not configured');
+        return '';
+    }
+
+    try {
+        const prompt = "Transcris cet audio fidèlement. Renvoie uniquement la transcription. Si c'est vide ou inaudible, renvoie une chaîne vide.";
+
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    mimeType: mimeType,
+                    data: audioBuffer.toString('base64')
+                }
+            }
+        ]);
+
+        const text = result.response.text();
+        console.log(`Audio transcribed: "${text}"`);
+        return text;
+    } catch (error) {
+        console.error('Error transcribing audio:', error);
+        return '';
+    }
+}
