@@ -4,6 +4,8 @@ import { sendWhatsAppMessage, getMediaBase64, sendWhatsAppAudio } from '../../li
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
 import { transcribeAudioMMS, generateSpeechMMS } from '../../lib/huggingface';
 
+const processedMessageIds = new Set<string>();
+
 export async function POST(req: NextRequest) {
     try {
         const bodyText = await req.text();
@@ -33,6 +35,25 @@ export async function POST(req: NextRequest) {
         if (!key || key.fromMe) {
             // Ignore own messages
             return NextResponse.json({ status: 'ignored_own_message' });
+        }
+
+        // CRITICAL: Deduplication to prevent processing the same message multiple times (retries)
+        const messageId = key.id || 'unknown_id';
+        if (messageId && messageId !== 'unknown_id' && processedMessageIds.has(messageId)) {
+            console.log(`Ignored duplicate message ID: ${messageId}`);
+            return NextResponse.json({ status: 'ignored_duplicate' });
+        }
+
+        if (messageId) {
+            processedMessageIds.add(messageId);
+            // Simple cleanup to prevent memory leak (keep last 1000 IDs)
+            if (processedMessageIds.size > 1000) {
+                const iterator = processedMessageIds.values();
+                for (let i = 0; i < 100; i++) {
+                    const nextVal = iterator.next().value;
+                    if (nextVal) processedMessageIds.delete(nextVal);
+                }
+            }
         }
 
         const from = key.remoteJid;
