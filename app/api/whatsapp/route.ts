@@ -84,85 +84,90 @@ export async function POST(req: NextRequest) {
 
         console.log(`Received message from ${from}: ${messageContent}`);
 
-        // Ack immediately
-        (async () => {
-            try {
-                // 1. Manage History
-                const userId = from; // Use remoteJid as ID
-                addMessage(userId, 'user', messageContent);
+        // Ack immediately - NO, we must wait in serverless or use waitUntil (middleware/edge)
+        // Since we are in standard Node runtime on Vercel, we must await to ensure completion.
+        // This means the webhook response will be delayed by the processing time.
+        // If > 10s, WhatsApp might retry. But for now, this is the safest fix for "no response".
 
-                const history = getHistory(userId);
-                const formattedHistory = formatHistoryForGemini(history);
+        try {
+            // 1. Manage History
+            const userId = from; // Use remoteJid as ID
+            addMessage(userId, 'user', messageContent);
 
-                // 2. Classify Intent
-                const intent = await classifyIntent(messageContent, formattedHistory);
-                console.log(`Intent determined: ${intent} for user ${userId}`);
+            const history = getHistory(userId);
+            const formattedHistory = formatHistoryForGemini(history);
 
-                // Status Update: Initial Processing
+            // 2. Classify Intent
+            const intent = await classifyIntent(messageContent, formattedHistory);
+            console.log(`Intent determined: ${intent} for user ${userId}`);
+
+            // Status Update: Initial Processing
+            await sendWhatsAppMessage(from, "⏳ ...");
+
+            let answer = '';
+
+            if (intent === 'SEARCH') {
+                // Status Update: Searching
+                await sendWhatsAppMessage(from, "🔍 ...");
+
+                // 3. Generate Answer using Gemini Grounding
+                console.log(`[Route] Delegating search to Gemini Grounding...`);
+                answer = await generateAnswer(messageContent, formattedHistory);
+            } else {
+                // 3c. Generate Chat Response
+                answer = await generateChatResponse(messageContent, formattedHistory);
+            }
+
+            // 4. Save Bot Response
+            addMessage(userId, 'model', answer);
+
+            // 5. Send WhatsApp response (Text or Audio) --- AUDIO PATH TO RESTORE WHEN WORKING...
+            /*
+            if (isAudioMessage) {
+                console.log( "Audio message detected. Handling Fon translation/TTS...");
+
+                // Status Update: Audio Generation
                 await sendWhatsAppMessage(from, "⏳ ...");
 
-                let answer = '';
+                // Translate to Fon
+                const { fonText, links } = await translateToFon(answer);
 
-                if (intent === 'SEARCH') {
-                    // Status Update: Searching
-                    await sendWhatsAppMessage(from, "🔍 ...");
+                if (fonText) {
+                    console.log("Generating Fon TTS...");
+                    const audioBuffer = await generateSpeechMMS(fonText);
 
-                    // 3. Generate Answer using Gemini Grounding
-                    console.log(`[Route] Delegating search to Gemini Grounding...`);
-                    answer = await generateAnswer(messageContent, formattedHistory);
-                } else {
-                    // 3c. Generate Chat Response
-                    answer = await generateChatResponse(messageContent, formattedHistory);
-                }
-
-                // 4. Save Bot Response
-                addMessage(userId, 'model', answer);
-
-                // 5. Send WhatsApp response (Text or Audio) --- AUDIO PATH TO RESTORE WHEN WORKING...
-                /*
-                if (isAudioMessage) {
-                    console.log( "Audio message detected. Handling Fon translation/TTS...");
-
-                    // Status Update: Audio Generation
-                    await sendWhatsAppMessage(from, "⏳ ...");
-
-                    // Translate to Fon
-                    const { fonText, links } = await translateToFon(answer);
-
-                    if (fonText) {
-                        console.log("Generating Fon TTS...");
-                        const audioBuffer = await generateSpeechMMS(fonText);
-
-                        if (audioBuffer) {
-                            await sendWhatsAppAudio(from, audioBuffer);
-                        } else {
-                            console.warn("TTS generation failed. Sending text fallback.");
-                            await sendWhatsAppMessage(from, fonText);
-                        }
+                    if (audioBuffer) {
+                        await sendWhatsAppAudio(from, audioBuffer);
                     } else {
-                        // Translation failed, send original
-                        await sendWhatsAppMessage(from, answer);
+                        console.warn("TTS generation failed. Sending text fallback.");
+                        await sendWhatsAppMessage(from, fonText);
                     }
-
-                    // Send links separately if any
-                    if (links && links.length > 0) {
-                        const linksMsg = "🔗 Liens utiles :\n" + links.join("\n");
-                        await sendWhatsAppMessage(from, linksMsg);
-                    }
-
                 } else {
-                    // Standard Text Response
+                    // Translation failed, send original
                     await sendWhatsAppMessage(from, answer);
                 }
-                */
 
-                // Temporary bypass for audio generation due to poor quality --- TO REMOVE WHEN AUDIO WORK...
+                // Send links separately if any
+                if (links && links.length > 0) {
+                    const linksMsg = "🔗 Liens utiles :\n" + links.join("\n");
+                    await sendWhatsAppMessage(from, linksMsg);
+                }
+
+            } else {
+                // Standard Text Response
                 await sendWhatsAppMessage(from, answer);
-            } catch (error) {
-                console.error('Background processing error:', error);
-                await sendWhatsAppMessage(from, "Désolé, une erreur technique est survenue.");
             }
-        })();
+            */
+
+            // Temporary bypass for audio generation due to poor quality --- TO REMOVE WHEN AUDIO WORK...
+            await sendWhatsAppMessage(from, answer);
+
+            console.log(`Processing finished for ${from}`);
+
+        } catch (error) {
+            console.error('Processing error:', error);
+            await sendWhatsAppMessage(from, "Désolé, une erreur technique est survenue.");
+        }
 
         return NextResponse.json({ status: 'success' });
 
