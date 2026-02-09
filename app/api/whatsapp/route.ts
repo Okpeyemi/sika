@@ -118,9 +118,10 @@ export async function POST(req: NextRequest) {
                 // 4. Save Bot Response
                 addMessage(userId, 'model', answer);
 
-                // 5. Send WhatsApp response (Text or Audio)
+                // 5. Send WhatsApp response (Text or Audio) --- AUDIO PATH TO RESTORE WHEN WORKING...
+                /*
                 if (isAudioMessage) {
-                    console.log("Audio message detected. Handling Fon translation/TTS...");
+                    console.log( "Audio message detected. Handling Fon translation/TTS...");
 
                     // Status Update: Audio Generation
                     await sendWhatsAppMessage(from, "⏳ ...");
@@ -153,6 +154,10 @@ export async function POST(req: NextRequest) {
                     // Standard Text Response
                     await sendWhatsAppMessage(from, answer);
                 }
+                */
+
+                // Temporary bypass for audio generation due to poor quality --- TO REMOVE WHEN AUDIO WORK...
+                await sendWhatsAppMessage(from, answer);
             } catch (error) {
                 console.error('Background processing error:', error);
                 await sendWhatsAppMessage(from, "Désolé, une erreur technique est survenue.");

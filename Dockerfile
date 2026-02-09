@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y \
 COPY scripts/requirements-tts.txt .
 
 # Install any needed packages specified in requirements.txt
-RUN pip install --no-cache-dir -r requirements-tts.txt
+RUN pip install --default-timeout=1000 --no-cache-dir -r requirements-tts.txt
 
 # Copy the server script into the container at /app
 COPY scripts/tts_server.py .
