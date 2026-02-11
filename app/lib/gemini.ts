@@ -45,7 +45,8 @@ Réponse :
     try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        return response.text();
+        const text = response.text();
+        return await validateAndFixUrls(text);
     } catch (error) {
         console.error('Error generating answer with Gemini Grounding:', error);
         return 'Désolé, une erreur est survenue lors de la génération de la réponse.';
@@ -133,7 +134,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
     }
 }
 
-export async function translateToFon(text: string): Promise<{fonText: string, links: string[]}> {
+export async function translateToFon(text: string): Promise<{ fonText: string, links: string[] }> {
     if (!apiKey) return { fonText: '', links: [] };
 
     // Extract links first to avoid translating them
@@ -142,7 +143,7 @@ export async function translateToFon(text: string): Promise<{fonText: string, li
         links.push(match);
         return '[LIEN]'; // Placeholder
     });
-    
+
     // Also remove markdown bold/italics for cleaner TTS
     const cleanText = textWithoutLinks.replace(/\*|_/g, '');
 
@@ -158,13 +159,64 @@ export async function translateToFon(text: string): Promise<{fonText: string, li
     try {
         const result = await model.generateContent(prompt);
         let fonText = result.response.text().trim();
-        
+
         // Remove [LIEN] placeholders from audio text, usually we don't speak them or say "Link available"
-        fonText = fonText.replace(/\[LIEN\]/g, ''); 
+        fonText = fonText.replace(/\[LIEN\]/g, '');
 
         return { fonText, links };
     } catch (error) {
         console.error('Error translating to Fon:', error);
         return { fonText: '', links: [] };
     }
+}
+
+async function validateAndFixUrls(text: string): Promise<string> {
+    const urlRegex = /https?:\/\/[^\s)]+/g;
+    const matches = text.match(urlRegex) || [];
+
+    // Deduplicate
+    const uniqueUrls = [...new Set(matches)];
+
+    for (const url of uniqueUrls) {
+        try {
+            // Basic cleaning: remove trailing punctuation often captured by simple regex
+            let cleanUrl = url;
+            if (cleanUrl.endsWith('.') || cleanUrl.endsWith(',') || cleanUrl.endsWith(')') || cleanUrl.endsWith(']')) {
+                cleanUrl = cleanUrl.slice(0, -1);
+            }
+
+            // Skip validation for localhost or private IPs if desired, but here we assume public URLs
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000); // 4s timeout
+
+            const response = await fetch(cleanUrl, {
+                method: 'HEAD',
+                signal: controller.signal,
+                headers: {
+                    'User-Agent': 'SikaBot/1.0',
+                    'Accept': '*/*'
+                }
+            });
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                // If HEAD fails (some servers block HEAD), try GET with range header or just proceed
+                // But for now, mark as potentially broken if status >= 400
+                if (response.status >= 400) {
+                    // Escape special chars in URL for regex replacement
+                    text = text.replace(new RegExp(escapeRegExp(url), 'g'), `${url} (⚠ Lien inaccessible)`);
+                }
+            }
+        } catch (e) {
+            console.warn(`URL validation failed for ${url}`);
+            // Network error or timeout -> consider broken
+            text = text.replace(new RegExp(escapeRegExp(url), 'g'), `${url} (⚠ Lien inaccessible)`);
+        }
+    }
+    return text;
+}
+
+function escapeRegExp(string: string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
