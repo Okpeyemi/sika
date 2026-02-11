@@ -37,7 +37,7 @@ Instructions :
 2. Utilise les résultats de recherche (Grounding) pour répondre.
 3. Cite tes sources avec des liens clairs.
 4. Si l'information est introuvable, dis-le poliment.
-5. **IMPORTANT : Ta réponse doit être concise (max 1500 caractères) et formatée pour WhatsApp (gras, listes). Évite les longs pavés.**
+5. **IMPORTANT : Ta réponse doit être concise (max 2500 caractères) et formatée pour WhatsApp (gras, listes). Évite les longs pavés.**
 
 Réponse :
 `;

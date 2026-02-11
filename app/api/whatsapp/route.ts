@@ -134,8 +134,14 @@ export async function POST(req: NextRequest) {
                 // 3. Generate Answer using Gemini Grounding
                 console.log(`[Route] Delegating search to Gemini Grounding...`);
                 answer = await generateAnswer(messageContent, formattedHistory);
-            } else {
+            } else if (intent === 'CHAT') {
+                // Status Update: Chatting
+                await sendWhatsAppReaction(from, messageId, "🤖");
+
                 // 3c. Generate Chat Response
+                answer = await generateChatResponse(messageContent, formattedHistory);
+            } else {
+                // Fallback (should not happen if classifyIntent is exhaustive)
                 answer = await generateChatResponse(messageContent, formattedHistory);
             }
 
