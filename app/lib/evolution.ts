@@ -24,7 +24,7 @@ export async function sendWhatsAppMessage(to: string, body: string) {
         number = to.split('@')[0];
     }
 
-    const MAX_LENGTH = 4096;
+    const MAX_LENGTH = 60000;
     const formattedBody = formatWhatsAppResponse(body);
     const chunks = formattedBody.match(new RegExp(`.{1,${MAX_LENGTH}}`, 'g')) || [formattedBody];
 
