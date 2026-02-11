@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio, translateToFon } from '../../lib/gemini';
-import { sendWhatsAppMessage, getMediaBase64, sendWhatsAppAudio } from '../../lib/evolution';
+import { sendWhatsAppMessage, getMediaBase64, sendWhatsAppAudio, sendWhatsAppReaction } from '../../lib/evolution';
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
 import { transcribeAudioMMS, generateSpeechMMS } from '../../lib/huggingface';
 
@@ -122,14 +122,14 @@ export async function POST(req: NextRequest) {
             const intent = await classifyIntent(messageContent, formattedHistory);
             console.log(`Intent determined: ${intent} for user ${userId}`);
 
-            // Status Update: Initial Processing
-            await sendWhatsAppMessage(from, "⏳ ...");
+            // Status Update: React to the user's message
+            await sendWhatsAppReaction(from, messageId, "⏳");
 
             let answer = '';
 
             if (intent === 'SEARCH') {
                 // Status Update: Searching
-                await sendWhatsAppMessage(from, "🔍 ...");
+                await sendWhatsAppReaction(from, messageId, "🔍");
 
                 // 3. Generate Answer using Gemini Grounding
                 console.log(`[Route] Delegating search to Gemini Grounding...`);

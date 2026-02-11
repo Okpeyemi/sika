@@ -24,7 +24,7 @@ export async function sendWhatsAppMessage(to: string, body: string) {
         number = to.split('@')[0];
     }
 
-    const MAX_LENGTH = 1500;
+    const MAX_LENGTH = 4096;
     const formattedBody = formatWhatsAppResponse(body);
     const chunks = formattedBody.match(new RegExp(`.{1,${MAX_LENGTH}}`, 'g')) || [formattedBody];
 
@@ -61,6 +61,47 @@ export async function sendWhatsAppMessage(to: string, body: string) {
         } catch (error) {
             console.error('Error sending WhatsApp message via Evolution API:', error);
         }
+    }
+}
+
+export async function sendWhatsAppReaction(to: string, messageId: string, emoji: string) {
+    if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN || !EVOLUTION_INSTANCE_NAME) {
+        console.warn('Evolution API not configured. Reaction not sent.');
+        return;
+    }
+
+    let number = to.replace('whatsapp:', '').replace(/\+/g, '').replace(/\D/g, '');
+    if (to.includes('@s.whatsapp.net')) {
+        number = to.split('@')[0];
+    }
+
+    try {
+        const endpoint = `${EVOLUTION_API_URL}/message/sendReaction/${EVOLUTION_INSTANCE_NAME}`;
+
+        const payload = {
+            key: {
+                remoteJid: to,
+                fromMe: false,
+                id: messageId
+            },
+            reaction: emoji
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EVOLUTION_API_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Evolution API Reaction Error (${response.status}):`, errorText);
+        }
+    } catch (error) {
+        console.error('Error sending WhatsApp reaction:', error);
     }
 }
 
@@ -131,10 +172,10 @@ export async function sendWhatsAppAudio(to: string, audioBuffer: Buffer) {
 
     try {
         const endpoint = `${EVOLUTION_API_URL}/message/sendMedia/${EVOLUTION_INSTANCE_NAME}`;
-        
+
         // Convert buffer to base64
         const base64Audio = audioBuffer.toString('base64');
-        
+
         const payload = {
             number: number,
             media: base64Audio,
@@ -153,7 +194,7 @@ export async function sendWhatsAppAudio(to: string, audioBuffer: Buffer) {
         });
 
         if (!response.ok) {
-             console.error(`Evolution API Audio Error (${response.status}):`, await response.text());
+            console.error(`Evolution API Audio Error (${response.status}):`, await response.text());
         }
     } catch (error) {
         console.error('Error sending WhatsApp audio:', error);
