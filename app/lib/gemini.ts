@@ -21,15 +21,44 @@ function getModel() {
 // Note: optimizeSearchQuery is no longer strictly needed but can still be useful.
 // We keep it for now but the main magic happens in generateAnswer.
 
-export async function optimizeSearchQuery(userQuery: string): Promise<string> {
-    if (!process.env.GEMINI_API_KEY) return userQuery;
-    return userQuery;
+export async function optimizeSearchQuery(userQuery: string, history: string): Promise<string> {
+    const model = getModel();
+    if (!model) return userQuery;
+
+    const prompt = `
+    Tu es un expert en recherche d'information.
+    Ta tâche est de transformer le dernier message de l'utilisateur en une requête de recherche précise pour le site du gouvernement du Bénin, en tenant compte de l'historique.
+
+    Historique :
+    ${history}
+
+    Dernier message : "${userQuery}"
+
+    Règles :
+    1. Si le dernier message est implicite (ex: "Oui allons-y", "C'est combien ?", "Et pour le passeport ?"), remplace-le par une requête explicite (ex: "Pièces à fournir CIP Bénin", "Coût demande passeport Bénin").
+    2. Si le message est déjà précis, garde-le tel quel.
+    3. RESTE CONCIS. Ne donne que la requête de recherche.
+
+    Requête optimisée :`;
+
+    try {
+        const result = await model.generateContent(prompt);
+        return result.response.text().trim();
+    } catch (error) {
+        console.error('Error optimizing search query:', error);
+        return userQuery;
+    }
 }
 
 
 export async function generateAnswer(query: string, history: string = ''): Promise<string> {
 
 
+
+
+    // Optimize the query to be context-aware (e.g. "Oui" -> "Pièces CIP")
+    const optimizedQuery = await optimizeSearchQuery(query, history);
+    console.log(`[Gemini] Contextualized Query: "${query}" -> "${optimizedQuery}"`);
 
     const prompt = `
 Tu es Sika, l'assistante officielle du gouvernement du Bénin.
@@ -38,7 +67,7 @@ Ta mission est d'aider les citoyens à comprendre les procédures administrative
 Historique de conversation :
 ${history}
 
-Dernier message : "${query}"
+Dernier message (Contexte explicite) : "${optimizedQuery}"
 
 Instructions :
 1. Recherche sur le site sgg.gouv.bj pour trouver les informations officielles.
