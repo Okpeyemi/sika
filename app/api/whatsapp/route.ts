@@ -113,9 +113,9 @@ export async function POST(req: NextRequest) {
         try {
             // 1. Manage History
             const userId = from; // Use remoteJid as ID
-            addMessage(userId, 'user', messageContent);
+            await addMessage(userId, 'user', messageContent);
 
-            const history = getHistory(userId);
+            const history = await getHistory(userId);
             const formattedHistory = formatHistoryForGemini(history);
 
             // 2. Classify Intent
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
             }
 
             // 4. Save Bot Response
-            addMessage(userId, 'model', answer);
+            await addMessage(userId, 'model', answer);
 
             // 5. Send WhatsApp response (Text or Audio) --- AUDIO PATH TO RESTORE WHEN WORKING...
             /*

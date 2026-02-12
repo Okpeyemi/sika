@@ -1,3 +1,5 @@
+import { fetchChatHistory } from './evolution';
+
 export type MessageRole = 'user' | 'model';
 
 export interface ChatMessage {
@@ -12,12 +14,30 @@ const historyMap = new Map<string, ChatMessage[]>();
 
 const MAX_HISTORY_LENGTH = 10; // Keep last 10 messages for context
 
-export function getHistory(userId: string): ChatMessage[] {
-    return historyMap.get(userId) || [];
+export async function getHistory(userId: string): Promise<ChatMessage[]> {
+    if (historyMap.has(userId)) {
+        return historyMap.get(userId) || [];
+    }
+
+    // Attempt to fetch from Evolution API if not in memory
+    console.log(`[History] Fetching history for ${userId} from Evolution API...`);
+    const remoteHistory = await fetchChatHistory(userId, MAX_HISTORY_LENGTH);
+    
+    if (remoteHistory.length > 0) {
+        const mappedHistory: ChatMessage[] = remoteHistory.map(msg => ({
+            role: msg.role,
+            text: msg.text,
+            timestamp: Date.now() // Approximated timestamp
+        }));
+        historyMap.set(userId, mappedHistory);
+        return mappedHistory;
+    }
+
+    return [];
 }
 
-export function addMessage(userId: string, role: MessageRole, text: string) {
-    const currentHistory = getHistory(userId);
+export async function addMessage(userId: string, role: MessageRole, text: string) {
+    const currentHistory = await getHistory(userId);
 
     const newMessage: ChatMessage = {
         role,

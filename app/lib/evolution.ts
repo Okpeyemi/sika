@@ -200,3 +200,64 @@ export async function sendWhatsAppAudio(to: string, audioBuffer: Buffer) {
         console.error('Error sending WhatsApp audio:', error);
     }
 }
+
+export async function fetchChatHistory(remoteJid: string, limit: number = 10): Promise<{ role: 'user' | 'model', text: string }[]> {
+    if (!EVOLUTION_API_URL || !EVOLUTION_API_TOKEN || !EVOLUTION_INSTANCE_NAME) {
+        return [];
+    }
+
+    try {
+        const endpoint = `${EVOLUTION_API_URL}/chat/findMessages/${EVOLUTION_INSTANCE_NAME}`;
+        
+        const payload = {
+            where: {
+                key: {
+                    remoteJid: remoteJid
+                }
+            },
+            options: {
+                limit: limit,
+                sort: {
+                    messageTimestamp: "DESC"
+                }
+            }
+        };
+
+        const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': EVOLUTION_API_TOKEN
+            },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+            console.error(`Evolution API History Error (${response.status}):`, await response.text());
+            return [];
+        }
+
+        const data = await response.json();
+        // Evolution API might return an array directly or an object with 'messages'
+        const messages = Array.isArray(data) ? data : (data.messages || []);
+
+        // Map and reverse to get chronological order (oldest first)
+        return messages.map((msg: any) => {
+            const isFromMe = msg.key?.fromMe === true;
+            const role = isFromMe ? 'model' : 'user';
+            
+            // Extract text best effort
+            let text = '';
+            if (msg.message?.conversation) text = msg.message.conversation;
+            else if (msg.message?.extendedTextMessage?.text) text = msg.message.extendedTextMessage.text;
+            else if (msg.message?.imageMessage?.caption) text = msg.message.imageMessage.caption;
+            else if (msg.message?.videoMessage?.caption) text = msg.message.videoMessage.caption;
+
+            return { role, text: text || '' };
+        }).filter((m: any) => m.text.trim() !== '').reverse();
+
+    } catch (error) {
+        console.error('Error fetching chat history from Evolution API:', error);
+        return [];
+    }
+}
