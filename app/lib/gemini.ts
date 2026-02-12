@@ -1,31 +1,39 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SearchResult } from './scraper';
 
-const apiKey = process.env.GEMINI_API_KEY;
-const genAI = new GoogleGenerativeAI(apiKey || '');
 
-const model = genAI.getGenerativeModel({
-    model: 'gemini-3-flash-preview',
-    // @ts-ignore - Google Search Grounding is in beta/newer SDK versions
-    tools: [{ googleSearch: {} }]
-});
+
+
+// Lazy initialization function
+function getModel() {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) return null;
+    
+    const genAI = new GoogleGenerativeAI(key);
+    return genAI.getGenerativeModel({
+        model: 'gemini-3-flash-preview',
+        // @ts-ignore - Google Search Grounding is in beta/newer SDK versions
+        tools: [{ googleSearch: {} }]
+    });
+}
+
 
 // Note: optimizeSearchQuery is no longer strictly needed but can still be useful.
 // We keep it for now but the main magic happens in generateAnswer.
 
 export async function optimizeSearchQuery(userQuery: string): Promise<string> {
-    if (!apiKey) return userQuery;
+    if (!process.env.GEMINI_API_KEY) return userQuery;
     return userQuery;
 }
 
+
 export async function generateAnswer(query: string, history: string = ''): Promise<string> {
-    if (!apiKey) {
-        return 'Désolé, la clé API Gemini n\'est pas configurée.';
-    }
+
+
 
     const prompt = `
-Tu es un assistant intelligent pour le gouvernement du Bénin.
-Ta mission : Répondre aux questions en te basant sur les documents officiels et l'historique de la conversation.
+Tu es Sika, l'assistante officielle du gouvernement du Bénin.
+Ta mission est d'aider les citoyens à comprendre les procédures administratives et à trouver les documents officiels.
 
 Historique de conversation :
 ${history}
@@ -35,12 +43,22 @@ Dernier message : "${query}"
 Instructions :
 1. Recherche sur le site sgg.gouv.bj pour trouver les informations officielles.
 2. Utilise les résultats de recherche (Grounding) pour répondre.
-3. Cite tes sources avec des liens clairs.
-4. Si l'information est introuvable, dis-le poliment.
-5. **IMPORTANT : Ta réponse doit être concise (max 2500 caractères) et formatée pour WhatsApp (gras, listes). Évite les longs pavés.**
+3. **MODE ADMINISTRATIF (CRITIQUE) :**
+   - Si la demande concerne une procédure (ex: demande de passeport, visa, création d'entreprise, acte de naissance, etc.) :
+     a. Liste CLAIREMENT les pièces à fournir sous forme de checklist (cases à cocher).
+     b. Demande explicitement à l'utilisateur : *"Avez-vous déjà ces documents prêts ?"* ou *"Voulez-vous que nous vérifiions ensemble si vous avez tout le nécessaire ?"*.
+     c. Adopte un ton proactif et accompagnateur pour aider l'utilisateur à se préparer.
+4. Cite tes sources avec des liens clairs vers les documents ou formulaires.
+5. Si l'information est introuvable, dis-le poliment et conseille de se rapprocher de l'administration concernée.
+6. **FORMAT :** Ta réponse doit être concise (max 2500 caractères) et formatée pour WhatsApp (gras, listes). Évite les longs pavés.
 
 Réponse :
 `;
+
+    const model = getModel();
+    if (!model) {
+        return 'Désolé, la clé API Gemini n\'est pas configurée.';
+    }
 
     try {
         const result = await model.generateContent(prompt);
@@ -54,7 +72,7 @@ Réponse :
 }
 
 export async function classifyIntent(query: string, history: string = ''): Promise<'SEARCH' | 'CHAT'> {
-    if (!apiKey) return 'CHAT';
+
 
     const prompt = `
     Analyse la dernière entrée de l'utilisateur en tenant compte de l'historique de la conversation.
@@ -72,6 +90,9 @@ export async function classifyIntent(query: string, history: string = ''): Promi
     Réponse (SEARCH ou CHAT) :`;
 
     try {
+        const model = getModel();
+        if (!model) return 'CHAT';
+        
         const result = await model.generateContent(prompt);
         const text = result.response.text().trim().toUpperCase();
         return text.includes('SEARCH') ? 'SEARCH' : 'CHAT';
@@ -82,7 +103,7 @@ export async function classifyIntent(query: string, history: string = ''): Promi
 }
 
 export async function generateChatResponse(query: string, history: string = ''): Promise<string> {
-    if (!apiKey) return 'Bonjour ! Je suis Sika, l\'assistante du gouvernement. Je peux vous aider à trouver des documents officiels.';
+
 
     const prompt = `
     Tu es Sika, une assistante utile et courtoise pour le gouvernement du Bénin.
@@ -98,6 +119,9 @@ export async function generateChatResponse(query: string, history: string = ''):
     Réponse :`;
 
     try {
+        const model = getModel();
+        if (!model) return 'Bonjour ! Je suis Sika, l\'assistante du gouvernement. Je peux vous aider à trouver des documents officiels.';
+
         const result = await model.generateContent(prompt);
         return result.response.text();
     } catch (error) {
@@ -107,13 +131,18 @@ export async function generateChatResponse(query: string, history: string = ''):
 }
 
 export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Promise<string> {
-    if (!apiKey) {
-        console.error('Gemini API key not configured');
-        return '';
-    }
+
+
 
     try {
+        const model = getModel();
+        if (!model) {
+            console.error('Gemini API key not configured');
+            return '';
+        }
+
         const prompt = "Transcris cet audio fidèlement. Renvoie uniquement la transcription. Si c'est vide ou inaudible, renvoie une chaîne vide.";
+
 
         const result = await model.generateContent([
             prompt,
@@ -135,7 +164,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
 }
 
 export async function translateToFon(text: string): Promise<{ fonText: string, links: string[] }> {
-    if (!apiKey) return { fonText: '', links: [] };
+
 
     // Extract links first to avoid translating them
     const links: string[] = [];
@@ -157,6 +186,9 @@ export async function translateToFon(text: string): Promise<{ fonText: string, l
     Traduction Fon :`;
 
     try {
+        const model = getModel();
+        if (!model) return { fonText: '', links: [] };
+
         const result = await model.generateContent(prompt);
         let fonText = result.response.text().trim();
 
