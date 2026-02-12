@@ -238,11 +238,23 @@ export async function fetchChatHistory(remoteJid: string, limit: number = 10): P
         }
 
         const data = await response.json();
-        // Evolution API might return an array directly or an object with 'messages'
-        const messages = Array.isArray(data) ? data : (data.messages || []);
+        
+        // Structure handling for various Evolution API versions:
+        // 1. Array directly: [...]
+        // 2. Object with messages array: { messages: [...] }
+        // 3. Paginated object: { messages: { records: [...] } }
+        let messagesArray: any[] = [];
+
+        if (Array.isArray(data)) {
+            messagesArray = data;
+        } else if (Array.isArray(data?.messages)) {
+            messagesArray = data.messages;
+        } else if (Array.isArray(data?.messages?.records)) {
+            messagesArray = data.messages.records;
+        }
 
         // Map and reverse to get chronological order (oldest first)
-        return messages.map((msg: any) => {
+        return messagesArray.map((msg: any) => {
             const isFromMe = msg.key?.fromMe === true;
             const role = isFromMe ? 'model' : 'user';
             
@@ -253,7 +265,7 @@ export async function fetchChatHistory(remoteJid: string, limit: number = 10): P
             else if (msg.message?.imageMessage?.caption) text = msg.message.imageMessage.caption;
             else if (msg.message?.videoMessage?.caption) text = msg.message.videoMessage.caption;
 
-            return { role, text: text || '' };
+            return { role, text: text || '' } as { role: 'user' | 'model', text: string };
         }).filter((m: any) => m.text.trim() !== '').reverse();
 
     } catch (error) {
