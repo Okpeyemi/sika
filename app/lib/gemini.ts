@@ -281,3 +281,48 @@ async function validateAndFixUrls(text: string): Promise<string> {
 function escapeRegExp(string: string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+
+export async function analyzeDocument(
+    fileBuffer: Buffer, 
+    mimeType: string, 
+    userQuery: string = '', 
+    history: string = ''
+): Promise<string> {
+    const model = getModel();
+    if (!model) return "Désolé, je ne peux pas analyser ce document pour le moment (API non configurée).";
+
+    const prompt = `
+    Tu es Sika, l'assistante administrative officielle du Bénin.
+    L'utilisateur t'a envoyé un document (image ou PDF) à analyser.
+
+    Tâche :
+    1. Identifie la nature du document (ex: Acte de naissance, Passeport, Formulaire, Facture, etc.).
+    2. Extrais les informations clés pertinentes pour une procédure administrative (noms, dates, numéros de dossier, validité).
+    3. Si l'utilisateur pose une question spécifique, réponds-y en te basant UNIQUEMENT sur le document et tes connaissances administratives.
+    4. Si le document semble incomplet, flou ou non officiel, signale-le poliment.
+    5. Sois rassurante et professionnelle.
+
+    Historique de conversation (pour contexte) :
+    ${history}
+
+    Message accompagnant le document : "${userQuery}"
+
+    Analyse et Réponse :
+    `;
+
+    try {
+        const result = await model.generateContent([
+            prompt,
+            {
+                inlineData: {
+                    data: fileBuffer.toString('base64'),
+                    mimeType: mimeType
+                }
+            }
+        ]);
+        return result.response.text();
+    } catch (error) {
+        console.error("Error analyzing document:", error);
+        return "Je n'ai pas réussi à analyser ce document. Il est peut-être trop volumineux ou illisible.";
+    }
+}

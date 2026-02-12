@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio, translateToFon } from '../../lib/gemini';
+import { generateAnswer, classifyIntent, generateChatResponse, transcribeAudio, translateToFon, analyzeDocument } from '../../lib/gemini';
 import { sendWhatsAppMessage, getMediaBase64, sendWhatsAppAudio, sendWhatsAppReaction } from '../../lib/evolution';
 import { getHistory, addMessage, formatHistoryForGemini } from '../../lib/history';
 import { transcribeAudioMMS, generateSpeechMMS } from '../../lib/huggingface';
@@ -58,49 +58,59 @@ export async function POST(req: NextRequest) {
 
         const from = key.remoteJid;
 
-        // Extract text content
         let messageContent = '';
+        let mediaBuffer: Buffer | null = null;
+        let mediaMimeType = '';
+
+        // Prioritize Text
         if (messageData?.conversation) {
             messageContent = messageData.conversation;
         } else if (messageData?.extendedTextMessage?.text) {
             messageContent = messageData.extendedTextMessage.text;
         } else if (data?.content) {
-            // simplified webhook sometimes returns just content
             messageContent = data.content;
         }
 
-        // Check for Audio/Voice Message
+        // Handle Media (Audio, Image, Document)
         if (messageData?.audioMessage) {
             console.log('Audio message detected');
-            // Check for base64 payload (Evolution API often sends 'base64' if configured or we might need to fetch)
-            // Assuming 'base64' or 'mediaUrl' is available. 
-            // For robust handling, check your specific Evolution config (base64 in webhook = true)
-
-            const base64Audio = data?.base64 || messageData?.base64;
-
-            if (base64Audio) {
-                const buffer = Buffer.from(base64Audio, 'base64');
-                // Use Gemini STT directly (MMS remote is 410 Gone)
-                messageContent = await transcribeAudio(buffer, 'audio/ogg');
-                if (messageContent) isAudioMessage = true;
-            } else {
-                console.log('Base64 missing in webhook, attempting to fetch from Evolution API...');
-                const fetchedBase64 = await getMediaBase64(data);
-
-                if (fetchedBase64) {
-                    const buffer = Buffer.from(fetchedBase64, 'base64');
-                    messageContent = await transcribeAudio(buffer, 'audio/ogg');
-                    if (messageContent) isAudioMessage = true;
+            mediaMimeType = messageData.audioMessage.mimetype || 'audio/ogg';
+            const base64 = data?.base64 || messageData?.base64 || await getMediaBase64(data);
+            
+            if (base64) {
+                mediaBuffer = Buffer.from(base64, 'base64');
+                // Transcribe immediately for processing as text
+                const transcription = await transcribeAudio(mediaBuffer, mediaMimeType);
+                if (transcription) {
+                    messageContent = transcription; // Treat as text input
+                    isAudioMessage = true;
                 } else {
-                    console.warn('Failed to fetch audio base64.');
-                    messageContent = "[Audio non transcrit]";
+                    messageContent = "[Audio inaudible]";
                 }
+            } else {
+                messageContent = "[Erreur chargement audio]";
+            }
+        } 
+        else if (messageData?.imageMessage || messageData?.documentMessage) {
+            console.log('Image/Document detected');
+            const msgType = messageData.imageMessage ? 'imageMessage' : 'documentMessage';
+            const mediaMsg = messageData[msgType];
+            
+            mediaMimeType = mediaMsg.mimetype;
+            // Caption usually serves as the user query
+            messageContent = mediaMsg.caption || "[Document envoyé]"; 
+
+            // Fetch Media
+            const base64 = data?.base64 || mediaMsg?.base64 || await getMediaBase64(data);
+            if (base64) {
+                mediaBuffer = Buffer.from(base64, 'base64');
+            } else {
+                console.warn('Failed to fetch media base64');
             }
         }
 
-        if (!messageContent || !from) {
-            // Maybe a status update or non-text message
-            return NextResponse.json({ status: 'no_text_content' });
+        if ((!messageContent && !mediaBuffer) || !from) {
+            return NextResponse.json({ status: 'no_content' });
         }
 
         console.log(`Received message from ${from}: ${messageContent}`);
@@ -118,8 +128,15 @@ export async function POST(req: NextRequest) {
             const history = await getHistory(userId);
             const formattedHistory = formatHistoryForGemini(history);
 
-            // 2. Classify Intent
-            const intent = await classifyIntent(messageContent, formattedHistory);
+            // 2. Classify Intent / Determine Action
+            // If we have a media buffer (image/doc), the intent is implicitly "ANALYZE_DOCUMENT"
+            // But ensure it's not an audio file (even if transcription failed)
+            let intent = 'CHAT'; 
+            if (mediaBuffer && !mediaMimeType.startsWith('audio/')) {
+                intent = 'ANALYZE';
+            } else {
+                intent = await classifyIntent(messageContent, formattedHistory);
+            }
             console.log(`Intent determined: ${intent} for user ${userId}`);
 
             // Status Update: React to the user's message
@@ -127,7 +144,13 @@ export async function POST(req: NextRequest) {
 
             let answer = '';
 
-            if (intent === 'SEARCH') {
+            if (intent === 'ANALYZE' && mediaBuffer) {
+                // Status Update: Analyzing
+                await sendWhatsAppReaction(from, messageId, "🧐");
+                console.log(`[Route] Analyzing document...`);
+                answer = await analyzeDocument(mediaBuffer, mediaMimeType, messageContent, formattedHistory);
+
+            } else if (intent === 'SEARCH') {
                 // Status Update: Searching
                 await sendWhatsAppReaction(from, messageId, "🔍");
 
