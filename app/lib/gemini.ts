@@ -100,6 +100,41 @@ Réponse :
     }
 }
 
+export async function* generateAnswerStream(query: string, history: string = '', extraInstruction: string = ''): AsyncGenerator<string> {
+    const optimizedQuery = await optimizeSearchQuery(query, history);
+    const prompt = `
+Tu es Sika, l'assistante officielle du gouvernement du Bénin.
+${extraInstruction}
+
+Historique de conversation :
+${history}
+
+Dernier message (Contexte explicite) : "${optimizedQuery}"
+
+Instructions :
+1. Recherche sur le site sgg.gouv.bj pour trouver les informations officielles.
+2. Utilise les résultats de recherche (Grounding) pour répondre.
+3. Si la demande concerne une procédure, liste les pièces à fournir sous forme de checklist.
+4. Cite tes sources avec des liens clairs.
+5. Si l'information est introuvable, dis-le poliment.
+6. Réponse concise (max 2500 caractères), formatée en Markdown.
+
+Réponse :
+`;
+    const model = getModel();
+    if (!model) { yield 'Désolé, la clé API Gemini n\'est pas configurée.'; return; }
+    try {
+        const result = await model.generateContentStream(prompt);
+        for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) yield text;
+        }
+    } catch (error) {
+        console.error('Error streaming answer:', error);
+        yield 'Désolé, une erreur est survenue.';
+    }
+}
+
 export async function classifyIntent(query: string, history: string = ''): Promise<'SEARCH' | 'CHAT'> {
 
 
@@ -156,6 +191,33 @@ export async function generateChatResponse(query: string, history: string = ''):
     } catch (error) {
         console.error('Error generating chat response:', error);
         return 'Bonjour ! Comment puis-je vous aider aujourd\'hui ?';
+    }
+}
+
+export async function* generateChatResponseStream(query: string, history: string = '', extraInstruction: string = ''): AsyncGenerator<string> {
+    const prompt = `
+    Tu es Sika, une assistante utile et courtoise pour le gouvernement du Bénin.
+    ${extraInstruction}
+
+    RÈGLE IMPORTANTE : L'historique ci-dessous est ta source de contexte principale. Si un document a été analysé dans l'historique, base tes réponses sur les informations de ce document. Ne fais PAS de recherche externe sauf si l'utilisateur le demande explicitement ou si sa question n'a aucun rapport avec le document.
+    
+    Historique :
+    ${history}
+    
+    Dernier message : "${query}"
+    
+    Réponse :`;
+    try {
+        const model = getModel();
+        if (!model) { yield 'Bonjour ! Comment puis-je vous aider ?'; return; }
+        const result = await model.generateContentStream(prompt);
+        for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) yield text;
+        }
+    } catch (error) {
+        console.error('Error streaming chat response:', error);
+        yield 'Désolé, une erreur est survenue.';
     }
 }
 
@@ -324,5 +386,38 @@ export async function analyzeDocument(
     } catch (error) {
         console.error("Error analyzing document:", error);
         return "Je n'ai pas réussi à analyser ce document. Il est peut-être trop volumineux ou illisible.";
+    }
+}
+
+export async function* analyzeDocumentStream(
+    fileBuffer: Buffer, mimeType: string, userQuery: string = '', history: string = '', extraInstruction: string = ''
+): AsyncGenerator<string> {
+    const model = getModel();
+    if (!model) { yield "Désolé, je ne peux pas analyser ce document (API non configurée)."; return; }
+    const prompt = `
+    Tu es Sika, l'assistante administrative officielle du Bénin.
+    ${extraInstruction}
+    L'utilisateur t'a envoyé un document à analyser.
+    1. Identifie la nature du document.
+    2. Extrais les informations clés.
+    3. Si l'utilisateur pose une question, réponds-y.
+    4. Si le document semble incomplet ou flou, signale-le.
+
+    Historique : ${history}
+    Message : "${userQuery}"
+    Analyse et Réponse :
+    `;
+    try {
+        const result = await model.generateContentStream([
+            prompt,
+            { inlineData: { data: fileBuffer.toString('base64'), mimeType } }
+        ]);
+        for await (const chunk of result.stream) {
+            const text = chunk.text();
+            if (text) yield text;
+        }
+    } catch (error) {
+        console.error('Error streaming document analysis:', error);
+        yield "Je n'ai pas réussi à analyser ce document.";
     }
 }
