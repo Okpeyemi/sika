@@ -803,6 +803,91 @@ body {
   /* Hide quote tooltip on mobile, or style it to be bottom-sheet like if needed. 
      For now, we keep it but ensure it doesn't overflow. */
   .chat-selection-tooltip {
-    display: none; /* Text selection on mobile handles copy/quote via native OS usually, or custom UI is hard to hit. Hiding for simplicity unless requested. */
+    /* on mobile, we might want to position it differently or ensure it's visible */
+    z-index: 9999;
   }
+}
+
+/* Quote/Pin Feature Styles */
+.chat-quote-btn {
+  background: var(--surface);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  transition: transform 0.1s, background 0.1s;
+}
+
+.chat-quote-btn:hover {
+  background: var(--surface-hover);
+  transform: scale(1.05);
+}
+
+.chat-quote-btn:active {
+  transform: scale(0.95);
+}
+
+.chat-quote-preview {
+  width: 100%;
+  max-width: 640px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  padding: 10px 14px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: -1px; /* Connect to input card */
+  position: relative;
+  z-index: 10;
+}
+
+.chat-quote-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.chat-quote-icon {
+  flex-shrink: 0;
+  color: var(--gold);
+  margin-top: 3px;
+}
+
+.chat-quote-text {
+  font-size: 0.85rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-style: italic;
+  border-left: 2px solid var(--gold);
+  padding-left: 8px;
+}
+
+.chat-quote-close {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.chat-quote-close:hover {
+  color: var(--foreground);
+  background: var(--surface-hover);
 }

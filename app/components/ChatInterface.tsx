@@ -71,7 +71,7 @@ export default function ChatInterface({ chatId }: { chatId?: string }) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
                 // Adjust for viewport relative to our container if needed, but 'fixed' works for tooltip
-                setSelectionRect({ top: rect.top - 40, left: rect.left + rect.width / 2 });
+                setSelectionRect({ top: rect.top - -60, left: rect.left - -10 + rect.width / 2 });
             } else {
                 setSelectionRect(null);
             }
