@@ -49,6 +49,19 @@ export function saveChatList(chats: ChatSummary[]) {
     localStorage.setItem(CHAT_LIST_KEY, JSON.stringify(chats));
 }
 
+export function saveChatListEntry(id: string, firstMessage: string) {
+    const title = firstMessage.slice(0, 50) + (firstMessage.length > 50 ? '…' : '');
+    const list = loadChatList();
+    const existing = list.findIndex(c => c.id === id);
+    const entry: ChatSummary = { id, title, updatedAt: Date.now() };
+    if (existing >= 0) {
+        list[existing] = entry;
+    } else {
+        list.unshift(entry);
+    }
+    saveChatList(list);
+}
+
 export function loadChatMessages(chatId: string): Message[] {
     if (typeof window === 'undefined') return [];
     try {

@@ -67,7 +67,6 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
 }
 
 .sidebar-toggle {
@@ -716,6 +715,7 @@ body {
 }
 
 /* ===== Responsive ===== */
+/* ===== Responsive ===== */
 @media (max-width: 640px) {
   .chat-greeting h1 {
     font-size: 1.7rem;
@@ -724,29 +724,61 @@ body {
   .chat-greeting-icon {
     width: 24px;
     height: 24px;
+    margin-bottom: 12px;
   }
 
   .chat-bubble {
     max-width: 92%;
+    font-size: 0.9rem;
   }
 
   .chat-suggestions {
     padding: 0 4px;
+    gap: 8px;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding-bottom: 4px;
+  }
+  
+  .chat-chip {
+    flex-shrink: 0;
+  }
+
+  /* Input area on mobile */
+  .chat-input-pinned {
+    padding: 8px 10px 0;
   }
 
   .chat-input-card {
     border-radius: 14px;
+    padding: 8px;
+  }
+
+  /* Sidebar mobile overlay */
+  .chat-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100dvh;
+    z-index: 50;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+    transition: transform 0.3s ease;
   }
 
   .chat-sidebar.open {
-    position: absolute;
-    z-index: 50;
-    height: 100dvh;
-    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4);
+    transform: translateX(0);
+    width: 260px;
   }
 
   .chat-sidebar.closed {
-    width: 0;
+    transform: translateX(-100%);
+    width: 260px; /* Keep width but slide out */
     border: none;
+  }
+  
+  /* Hide quote tooltip on mobile, or style it to be bottom-sheet like if needed. 
+     For now, we keep it but ensure it doesn't overflow. */
+  .chat-selection-tooltip {
+    display: none; /* Text selection on mobile handles copy/quote via native OS usually, or custom UI is hard to hit. Hiding for simplicity unless requested. */
   }
 }
