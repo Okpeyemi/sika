@@ -300,6 +300,7 @@ body {
   max-width: 640px;
   overflow: hidden;
   transition: border-color 0.2s;
+  z-index: 10;
 }
 
 .chat-input-card:focus-within {
@@ -836,8 +837,7 @@ body {
 
 .chat-quote-preview {
   width: 100%;
-  max-width: 640px;
-  background: var(--surface);
+  background: var(--background);
   border: 1px solid var(--border);
   border-bottom: none;
   border-radius: 12px 12px 0 0;
@@ -846,9 +846,9 @@ body {
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: -1px; /* Connect to input card */
+  padding-bottom: 20px;
+  margin-bottom: -10px; /* Connect to input card */
   position: relative;
-  z-index: 10;
 }
 
 .chat-quote-content {
