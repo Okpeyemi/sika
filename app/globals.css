@@ -44,6 +44,10 @@ body {
 }
 
 /* ===== Sidebar ===== */
+.mobile-nav-toggle {
+  display: none;
+}
+
 .chat-sidebar {
   background: #091a30;
   border-right: 1px solid var(--border);
@@ -742,6 +746,26 @@ body {
   
   .chat-chip {
     flex-shrink: 0;
+  }
+
+  /* Mobile Nav Toggle */
+  .mobile-nav-toggle {
+    display: block;
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 40;
+  }
+
+  .mobile-nav-toggle button {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
   }
 
   /* Input area on mobile */

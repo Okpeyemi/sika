@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Quote, X } from 'lucide-react';
+import { Quote, X, PanelLeft } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChatInput from './ChatInput';
 import MessageBubble, { TypingIndicator } from './MessageBubble';
@@ -345,6 +345,12 @@ export default function ChatInterface({ chatId }: { chatId?: string }) {
                 onChatListChange={setChatList}
                 activeChatId={chatId}
             />
+
+            <div className="mobile-nav-toggle">
+                <button onClick={() => setSidebarOpen(true)} className="p-2">
+                    <PanelLeft size={24} />
+                </button>
+            </div>
 
             <div className="chat-root" ref={chatRootRef}>
                 <div className="chat-container">
