@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Quote, X } from 'lucide-react';
+import { Quote, X, PanelLeft } from 'lucide-react';
 import Sidebar from './Sidebar';
 import ChatInput from './ChatInput';
 import MessageBubble, { TypingIndicator } from './MessageBubble';
@@ -71,7 +71,7 @@ export default function ChatInterface({ chatId }: { chatId?: string }) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
                 // Adjust for viewport relative to our container if needed, but 'fixed' works for tooltip
-                setSelectionRect({ top: rect.top - 40, left: rect.left + rect.width / 2 });
+                setSelectionRect({ top: rect.top - -60, left: rect.left - -10 + rect.width / 2 });
             } else {
                 setSelectionRect(null);
             }
@@ -345,6 +345,12 @@ export default function ChatInterface({ chatId }: { chatId?: string }) {
                 onChatListChange={setChatList}
                 activeChatId={chatId}
             />
+
+            <div className="mobile-nav-toggle">
+                <button onClick={() => setSidebarOpen(true)} className="p-2">
+                    <PanelLeft size={24} />
+                </button>
+            </div>
 
             <div className="chat-root" ref={chatRootRef}>
                 <div className="chat-container">
